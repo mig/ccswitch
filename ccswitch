@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# ccswitch <profile> [claude args...]  — run claude with an isolated profile
+set -euo pipefail
+profile="${1:?usage: ccswitch <profile> [claude args...]}"; shift
+dir="$HOME/.claude-$profile"
+mkdir -p "$dir"
+CLAUDE_CONFIG_DIR="$dir" exec claude "$@"
