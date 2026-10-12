@@ -1,7 +1,32 @@
 #!/usr/bin/env bash
 # ccswitch <profile> [claude args...]  — run claude with an isolated profile
+# ccswitch default [profile]           — show or set the profile plain `claude` uses
 set -euo pipefail
-profile="${1:?usage: ccswitch <profile> [claude args...]}"; shift
+usage="usage: ccswitch <profile> [claude args...] | ccswitch default [profile]"
+profile="${1:?$usage}"; shift
+
+if [[ "$profile" == "default" ]]; then
+  if [[ $# -eq 0 ]]; then
+    target=$(readlink "$HOME/.claude" 2>/dev/null) || { echo "no default set (~/.claude is not a symlink)"; exit 1; }
+    echo "${target##*/.claude-}"
+    exit 0
+  fi
+  dir="$HOME/.claude-$1"
+  [[ -d "$dir" ]] || { echo "ccswitch: no such profile: $dir" >&2; exit 1; }
+  # Refuse to clobber a real (non-symlink) ~/.claude or ~/.claude.json; the user decides where it goes
+  for f in "$HOME/.claude" "$HOME/.claude.json"; do
+    if [[ -e "$f" && ! -L "$f" ]]; then
+      echo "ccswitch: $f is a real file/directory, not a symlink." >&2
+      echo "Back it up or move it somewhere yourself, then re-run: ccswitch default $1" >&2
+      exit 1
+    fi
+  done
+  ln -sfn "$dir" "$HOME/.claude"
+  ln -sfn "$dir/.claude.json" "$HOME/.claude.json"
+  echo "default profile: $1"
+  exit 0
+fi
+
 dir="$HOME/.claude-$profile"
 mkdir -p "$dir"
 CLAUDE_CONFIG_DIR="$dir" exec claude "$@"
